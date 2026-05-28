@@ -1,32 +1,60 @@
 /**
  * @file App.jsx
- * @description Root React component and application shell.
+ * @description Root React component — application shell and routing.
  *
  * ARCHITECTURE — Frontend Root:
- * App is the top-level component rendered by main.jsx. In the full
- * implementation it will:
- *  - Wrap the application in AuthContext (JWT state management)
- *  - Set up React Router with all page routes
- *  - Define the PrivateRoute guard that redirects unauthenticated users
+ * App is the composition root of the React SPA. It wires together:
  *
- * For the Phase 0 skeleton it renders a minimal placeholder page so that
- * the Vite build and Jest smoke test can both succeed without any routing
- * or context dependencies being present yet.
+ *   AuthProvider   — provides JWT state to the entire component tree
+ *   BrowserRouter  — enables React Router v6 navigation
+ *   Routes         — declarative route definitions
+ *   PrivateRoute   — redirects unauthenticated users to /login
+ *
+ * ROUTE TABLE:
+ *   /           → redirects to /login
+ *   /login      → LoginPage (public)
+ *   /todos      → TodosPage (protected by PrivateRoute)
+ *
+ * app.js never calls app.listen() — that is the sole responsibility of
+ * main.jsx. This is the frontend equivalent of the backend separation
+ * between app.js and server.js.
  */
 
-import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider }  from './context/AuthContext';
+import PrivateRoute      from './components/PrivateRoute';
+import LoginPage         from './pages/LoginPage';
+import TodosPage         from './pages/TodosPage';
 
 /**
  * Root application component.
  *
- * @returns {JSX.Element} The application shell.
+ * @returns {JSX.Element} The fully wired application shell.
  */
 function App() {
   return (
-    <main>
-      <h1>Todo List</h1>
-      <p>Application loading&hellip;</p>
-    </main>
+    <AuthProvider>
+      {/* v7_relativeSplatPath opts in to the v7 splat resolution behaviour early */}
+      <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/login" element={<LoginPage />} />
+
+          {/* Protected routes — PrivateRoute redirects to /login if unauthenticated */}
+          <Route
+            path="/todos"
+            element={
+              <PrivateRoute>
+                <TodosPage />
+              </PrivateRoute>
+            }
+          />
+
+          {/* Default: redirect root to the login page */}
+          <Route path="/" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 
