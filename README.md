@@ -1,40 +1,51 @@
 # Todo List Application
 
-A full-stack todo list application built with a React SPA frontend and an Express BFF (Backend for Frontend), following Domain-Driven Design (DDD) and 12-factor app principles.
+A full-stack todo list application built across three independently deployable layers, following Domain-Driven Design (DDD) and 12-factor app principles.
 
 ---
 
-## Architecture Overview
-
-The application is split into two main components:
+## Architecture
 
 ```
-/
-├── frontend/    # React SPA
-└── bff/         # Express BFF — REST API layer
+Browser (React SPA, port 5173)
+        │
+        │  HTTP REST  ·  Authorization: Bearer <token>
+        ▼
+BFF — Backend for Frontend (Express, port 3002)
+        │  Thin proxy — no business logic, no JWT secret
+        │  Forwards Authorization header verbatim
+        ▼
+Backend Service (Express, port 3001)
+        │  DDD layers · JWT authentication · SQLite persistence
+        ▼
+    todos.db  (SQLite — path configured via DB_PATH env var)
 ```
 
-### BFF (Backend for Frontend)
+### Package Layout
 
-The BFF is structured around DDD layering and 12-factor principles:
+```
+todolist/
+├── package.json       # Root — convenience scripts only (no shared code)
+├── backend/           # Core business logic — DDD + 12-factor
+├── bff/               # Backend for Frontend — Express proxy
+└── frontend/          # React SPA — communicates only with the BFF
+```
 
-| Layer | Responsibility |
-|---|---|
-| **Interface** | Express routes and controllers — HTTP in/out only |
-| **Application** | Use cases and orchestration logic |
-| **Domain** | Entities, value objects, and domain rules |
-| **Infrastructure** | SQLite persistence, repository implementations |
+### Backend DDD Layers (`backend/src/`)
 
-Configuration is injected via environment variables (12-factor III), keeping the application free of hard-coded environment-specific values.
-
-The SPA communicates exclusively through the BFF's REST API — it has no direct knowledge of the persistence layer.
+| Layer | Path | Responsibility |
+|-------|------|----------------|
+| **Domain** | `domain/` | Entities, value objects, repository interfaces — zero I/O |
+| **Application** | `application/` | Use cases — orchestrate domain logic, delegate I/O to repositories |
+| **Interface** | `interface/` | Express routes, controllers, middleware — HTTP in/out only |
+| **Infrastructure** | `infrastructure/` | SQLite repositories, JWT, bcrypt, structured logger |
 
 ---
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/) v18 or later
-- npm v9 or later
+- [Node.js](https://nodejs.org/) v22 LTS or later
+- npm v10 or later
 
 ---
 
@@ -49,42 +60,84 @@ cd todolist
 
 ### 2. Configure environment variables
 
-Copy the example env file in each package and edit as needed:
+Each package has a `.env.example` — copy and edit before running:
 
 ```bash
-cp bff/.env.example bff/.env
+cp backend/.env.example backend/.env
+cp bff/.env.example     bff/.env
 cp frontend/.env.example frontend/.env
 ```
 
-### 3. Install dependencies
+**`backend/.env`**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3001` | Port the backend listens on |
+| `DB_PATH` | `./data/todos.db` | SQLite database file path |
+| `JWT_SECRET` | *(required)* | Secret used to sign and verify JWTs |
+| `JWT_EXPIRES_IN` | `1h` | JWT expiry duration |
+
+**`bff/.env`**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3002` | Port the BFF listens on |
+| `BACKEND_URL` | `http://localhost:3001` | Base URL of the backend service |
+| `CORS_ORIGIN` | `http://localhost:5173` | Allowed SPA origin for CORS |
+
+**`frontend/.env`**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VITE_BFF_URL` | `http://localhost:3002` | BFF base URL (must be reachable from the browser) |
+
+### 3. Install all dependencies
 
 ```bash
-# BFF
-cd bff && npm install
-
-# Frontend
-cd ../frontend && npm install
+npm run install:all
 ```
 
-### 4. Run in development
+Or install each package individually:
 
 ```bash
-# Terminal 1 — BFF (defaults to http://localhost:3001)
-cd bff && npm run dev
+npm install --prefix backend
+npm install --prefix bff
+npm install --prefix frontend
+```
 
-# Terminal 2 — React SPA (defaults to http://localhost:3000)
-cd frontend && npm start
+### 4. Run in development (three terminals)
+
+```bash
+# Terminal 1 — Backend (http://localhost:3001)
+npm run dev:backend
+
+# Terminal 2 — BFF (http://localhost:3002)
+npm run dev:bff
+
+# Terminal 3 — React SPA (http://localhost:5173)
+npm run dev:frontend
 ```
 
 ### 5. Run in production
 
 ```bash
 # Build the React SPA
-cd frontend && npm run build
+npm run build:frontend
 
-# Start the BFF (serves the built SPA as static assets)
-cd ../bff && npm start
+# Start the backend and BFF (each in their own process)
+npm run dev:backend   # or: node backend/src/server.js
+npm run dev:bff       # or: node bff/src/server.js
 ```
+
+The BFF serves built frontend assets in production; open `http://localhost:3002` in your browser.
+
+### 6. Validate the full stack (install + test + build)
+
+```bash
+npm run validate
+```
+
+This is the single green-gate — it installs all dependencies, runs all tests across all packages, and builds the frontend. Use it to confirm everything is wired up correctly.
 
 ---
 
@@ -92,31 +145,40 @@ cd ../bff && npm start
 
 Tests are written with [Jest](https://jestjs.io/).
 
-```bash
-# BFF unit and integration tests
-cd bff && npm test
-
-# Frontend component tests
-cd frontend && npm test
-
-# Run all tests from the root (if a root-level script is configured)
-npm test
-```
-
-Test coverage report:
+### Run all tests (all packages)
 
 ```bash
-cd bff && npm run test:coverage
+npm run test:all
 ```
 
-### Testing Strategy
+### Run tests per package
 
-- **Domain layer**: pure unit tests with no I/O — fast and dependency-free.
-- **Application layer**: unit tests with repository interfaces mocked via Jest.
-- **Interface layer**: integration tests using [supertest](https://github.com/ladjs/supertest) against a real Express app with an in-memory SQLite database.
-- **Frontend**: component tests with [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/).
+```bash
+npm test --prefix backend    # unit + integration tests
+npm test --prefix bff        # BFF integration tests
+npm test --prefix frontend   # React component tests
+```
 
-This layered approach means the vast majority of business logic is covered by fast, isolated unit tests, with integration tests reserved for verifying the HTTP contract.
+### Run with coverage
+
+```bash
+cd backend && npm run test:coverage
+cd frontend && npm run test:coverage
+```
+
+---
+
+## Testing Strategy
+
+| Layer | Test type | Tooling | Isolation approach |
+|-------|-----------|---------|-------------------|
+| Backend — domain | Unit | Jest | None — pure functions, no I/O |
+| Backend — application | Unit | Jest | `jest.fn()` mocks for repository interfaces |
+| Backend — interface | Integration | Jest + supertest | In-memory SQLite (`DB_PATH=':memory:'`) |
+| BFF | Integration | Jest + supertest | `jest.mock('./httpClient')` — no real backend |
+| Frontend | Component | RTL + Jest | `jest.mock('../api/todos')` — no real BFF |
+
+The layered approach means the vast majority of business logic is covered by fast, dependency-free unit tests. Integration tests are reserved for verifying HTTP contracts at the entry points of each service.
 
 ---
 
@@ -124,34 +186,50 @@ This layered approach means the vast majority of business logic is covered by fa
 
 ### Domain-Driven Design
 
-The BFF is structured around a clear domain boundary. `Todo` is the primary aggregate root, encapsulating its own invariants (e.g. a completed todo cannot be re-opened without explicit intent). Use cases in the application layer orchestrate domain logic and delegate persistence to repository interfaces — the domain has zero knowledge of SQLite.
+The backend is structured around a strict DDD boundary:
+
+- **`Todo`** is the primary aggregate root. Its invariants (title required, description ≤ 1000 chars) are enforced inside the entity factory — not in controllers or database code.
+- **Use cases** in the application layer orchestrate domain logic and delegate all persistence to repository *interfaces*. The domain layer has zero knowledge of SQLite.
+- **Repository implementations** live entirely in the infrastructure layer — swapping SQLite for PostgreSQL requires only a new infrastructure implementation, no domain or application changes.
 
 ### 12-Factor Compliance
 
 | Factor | Applied |
-|---|---|
-| **III — Config** | All environment-specific values (port, DB path, CORS origin) via `.env` / environment variables |
+|--------|---------|
+| **III — Config** | All environment-specific values injected via `.env` / environment variables |
 | **IV — Backing services** | SQLite treated as an attached resource; path is configurable |
-| **VI — Processes** | BFF is stateless — no in-process session state |
-| **XI — Logs** | Structured logs written to stdout |
+| **VI — Processes** | All three services are stateless — no in-process session state |
+| **XI — Logs** | Structured JSON logs written to stdout by the backend |
+
+### BFF Pattern
+
+The BFF sits between the SPA and the backend, providing a single origin for the browser to call. It forwards requests and the `Authorization` header verbatim — it has no JWT secret and cannot validate tokens. This keeps the frontend logic thin and the backend the sole authority on auth.
+
+### Consistent Domain Naming
+
+All three layers use identical terminology for the same concept (e.g., `Todo`, `userId`, `emailAddress`, `isCompleted`, `dueDate`). This allows a concept to be traced from the database column to the UI without translation — important for maintainability and for learners reading the code.
 
 ### SQLite
 
-SQLite was chosen for simplicity — no server to run, a single file to manage. The repository abstraction means swapping to PostgreSQL requires only a new infrastructure implementation.
+Chosen for simplicity — no server to run, a single file to manage. The repository abstraction means the persistence layer can be replaced without touching domain or application code.
 
 ---
 
 ## Assumptions
 
-- A single user (no authentication or multi-tenancy).
-- "Todo" consists of at minimum: id, title, status (pending/completed), and timestamps.
-- The SPA is served by the BFF in production (single deployable unit).
-- Node.js 18+ is available in all target environments.
+- Single-user per session — authentication is per-user but there is no admin or multi-tenant concept.
+- The SPA and BFF are deployed on the same host in production (or behind the same load balancer).
+- Node.js 22 LTS is available in all target environments (compatible with GCP Cloud Run and App Engine).
+- `title` is the only required field on a `Todo`; `description` and `dueDate` are optional.
 
 ---
 
 ## Trade-offs
 
-- **SQLite over PostgreSQL**: simplifies local setup at the cost of concurrent write limits — acceptable for this scope.
-- **Monorepo (single repo, two packages)**: keeps things simple without the overhead of a full monorepo toolchain (Nx, Turborepo). Not ideal if the two packages need to scale independently.
-- **BFF pattern**: adds a layer vs. the SPA hitting persistence directly, but enforces a clean API contract and keeps the frontend logic thin.
+| Decision | Trade-off |
+|----------|-----------|
+| SQLite over PostgreSQL | Simpler local setup; concurrent write limits not a concern at this scale |
+| Three separate packages (no monorepo toolchain) | Straightforward without Nx/Turborepo overhead; not ideal if packages need to scale independently |
+| No shared code package | Each service is self-contained and independently deployable; small amount of duplication accepted |
+| BFF as pure proxy | Adds a network hop; benefit is a clean API contract and a thin, predictable frontend |
+| JWT in React state (not localStorage) | Tokens lost on page refresh (user must re-login); mitigates XSS risk from localStorage |
