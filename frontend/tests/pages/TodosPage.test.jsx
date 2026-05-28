@@ -63,8 +63,8 @@ describe('TodosPage', () => {
 
   it('displays todos returned from the API after mount', async () => {
     listTodos.mockResolvedValue([
-      { id: '1', title: 'Buy groceries', isCompleted: false },
-      { id: '2', title: 'Walk the dog',  isCompleted: false },
+      { id: '1', title: 'Buy groceries', isCompleted: false, dueDate: '2026-06-01' },
+      { id: '2', title: 'Walk the dog',  isCompleted: true,  dueDate: null },
     ]);
 
     renderTodosPage();
@@ -72,6 +72,11 @@ describe('TodosPage', () => {
     // findByText waits for the async listTodos call to resolve and React to re-render.
     expect(await screen.findByText('Buy groceries')).toBeInTheDocument();
     expect(screen.getByText('Walk the dog')).toBeInTheDocument();
+
+    // Essential metadata must be visible without opening the item.
+    expect(screen.getByText('Due: 2026-06-01')).toBeInTheDocument();
+    expect(screen.getAllByText('Incomplete')[0]).toBeInTheDocument();
+    expect(screen.getByText('Completed')).toBeInTheDocument();
   });
 
   it('shows an empty-state message when the user has no todos', async () => {

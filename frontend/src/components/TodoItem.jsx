@@ -53,7 +53,14 @@ function TodoItem({ todo, onDelete, onToggleComplete }) {
       {/* UC-06: clicking the title navigates to the detail/edit page */}
       <Link to={`/todos/${todo.id}`}>{todo.title}</Link>
 
-      {todo.isCompleted && <span aria-label="completed"> (done)</span>}
+      {/* Essential metadata shown inline so the user can scan the list without opening each item */}
+      <span aria-label="completion status">
+        {todo.isCompleted ? 'Completed' : 'Incomplete'}
+      </span>
+
+      {todo.dueDate && (
+        <span aria-label="due date">Due: {todo.dueDate}</span>
+      )}
 
       {/* Completion toggle — calls the parent-provided handler */}
       <button

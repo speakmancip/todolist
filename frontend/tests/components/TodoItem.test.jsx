@@ -23,6 +23,7 @@ const baseTodo = {
   id:          'todo-abc',
   title:       'Sample task',
   isCompleted: false,
+  dueDate:     '2026-08-15',
 };
 
 /**
@@ -57,7 +58,7 @@ describe('TodoItem', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // UC-06 — Navigation link
+  // UC-06 — Navigation link and essential metadata
   // ---------------------------------------------------------------------------
 
   it('UC-06: renders the todo title as a link to /todos/:id', () => {
@@ -65,6 +66,26 @@ describe('TodoItem', () => {
 
     const link = screen.getByRole('link', { name: 'Sample task' });
     expect(link).toHaveAttribute('href', '/todos/todo-abc');
+  });
+
+  it('shows the completion status', () => {
+    renderTodoItem();
+    expect(screen.getByLabelText('completion status')).toHaveTextContent('Incomplete');
+  });
+
+  it('shows "Completed" when isCompleted is true', () => {
+    renderTodoItem({ isCompleted: true });
+    expect(screen.getByLabelText('completion status')).toHaveTextContent('Completed');
+  });
+
+  it('shows the due date when one is provided', () => {
+    renderTodoItem();
+    expect(screen.getByLabelText('due date')).toHaveTextContent('Due: 2026-08-15');
+  });
+
+  it('omits the due date element when dueDate is null', () => {
+    renderTodoItem({ dueDate: null });
+    expect(screen.queryByLabelText('due date')).not.toBeInTheDocument();
   });
 
   // ---------------------------------------------------------------------------
