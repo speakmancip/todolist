@@ -42,6 +42,67 @@ todolist/
 
 ---
 
+## Delivery State
+
+### Use Cases
+
+| Use Case | Status | Notes |
+|----------|:------:|-------|
+| UC-01 Login — happy path | ✅ | JWT issued; stored in React state (not localStorage) |
+| UC-02/03 Login — bad credentials | ✅ | Generic 401 message; no field hint (prevents user enumeration) |
+| UC-04 Create todo — happy path | ✅ | Title, description, dueDate fields; returns 201 |
+| UC-05 Create todo — missing title | ✅ | Client-side guard fires before API call; backend enforces as safety net |
+| UC-06 View todo details | ✅ | Detail page fetched by ID; list items link directly |
+| UC-07 Edit todo — happy path | ✅ | Title, description, dueDate all updatable |
+| UC-08 Edit todo — description too long | ⚠️ Partial | Backend enforces 1000-char limit (422); create form uses HTML `maxLength`; edit form has no client-side pre-validation — relies on the backend error message |
+| UC-09 Delete todo — confirmed | ✅ | `window.confirm` → DELETE → 204; item removed from list |
+| UC-10 Delete todo — cancelled | ✅ | Dismissible "Deletion cancelled" banner |
+| Register | ✅ | Separate register page; 409 on duplicate email |
+| Complete / Incomplete toggle | ✅ | PATCH `/complete` and `/incomplete` endpoints wired end-to-end |
+| List view — essential details | ✅ | Title, completion status, and due date shown inline |
+
+### Architecture & Infrastructure
+
+| Requirement | Status | Notes |
+|-------------|:------:|-------|
+| Domain-Driven Design | ✅ | Strict Domain → Application → Interface → Infrastructure layers |
+| BFF pure proxy | ✅ | Zero domain logic; forwards `Authorization` header verbatim |
+| Repository abstraction | ✅ | `TodoRepository` / `UserRepository` interfaces; SQLite implementations |
+| Idempotent migrations | ✅ | `CREATE TABLE IF NOT EXISTS` — safe to run on every startup |
+| Stateless services | ✅ | No in-memory session state in backend or BFF |
+| JWT authority | ✅ | Backend exclusively signs and verifies tokens; BFF has no JWT secret |
+| Centralised error handling | ✅ | Global error handlers in both backend and BFF; domain codes → HTTP status |
+| Structured logging | ✅ | JSON to stdout (12-Factor XI); audit events persisted to `logs` table |
+| Environment configuration | ✅ | All secrets and URLs via `.env` variables |
+| Environment validation at startup | ❌ | No fail-fast if `JWT_SECRET` or other required variables are absent |
+| CORS | ⚠️ Partial | `cors({ origin: CORS_ORIGIN })` in BFF; allowed methods/headers not explicitly restricted |
+| Security headers | ❌ | No `helmet` or Content-Security-Policy in BFF or backend |
+| Rate limiting | ❌ | No brute-force protection on `/auth/login` or other endpoints |
+| Request tracing | ❌ | No correlation IDs across SPA → BFF → backend |
+| API documentation | ❌ | No OpenAPI / Swagger specification |
+| Containerisation | ❌ | No `Dockerfile` for any service |
+| CI/CD | ❌ | No GitHub Actions or automated pipeline |
+
+---
+
+## REST API
+
+All `/todos` endpoints require an `Authorization: Bearer <token>` header.
+
+| Method | Path | Auth | Description |
+|--------|------|:----:|-------------|
+| `POST` | `/auth/register` | | Create a user account; returns a JWT |
+| `POST` | `/auth/login` | | Validate credentials; returns a JWT |
+| `GET` | `/todos` | ✓ | List all todos for the authenticated user |
+| `POST` | `/todos` | ✓ | Create a todo |
+| `GET` | `/todos/:id` | ✓ | Fetch a single todo |
+| `PUT` | `/todos/:id` | ✓ | Update title, description, and/or due date |
+| `DELETE` | `/todos/:id` | ✓ | Permanently delete a todo (returns 204) |
+| `PATCH` | `/todos/:id/complete` | ✓ | Mark a todo as completed |
+| `PATCH` | `/todos/:id/incomplete` | ✓ | Mark a completed todo as incomplete |
+
+---
+
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/) v22 LTS or later
@@ -118,18 +179,20 @@ npm run dev:bff
 npm run dev:frontend
 ```
 
+Then open `http://localhost:5173` in your browser.
+
 ### 5. Run in production
 
 ```bash
-# Build the React SPA
+# Build the React SPA into static files
 npm run build:frontend
 
-# Start the backend and BFF (each in their own process)
-npm run dev:backend   # or: node backend/src/server.js
-npm run dev:bff       # or: node bff/src/server.js
+# Start the backend and BFF (each in their own process or container)
+node backend/src/server.js    # port 3001
+node bff/src/server.js        # port 3002
 ```
 
-The BFF serves built frontend assets in production; open `http://localhost:3002` in your browser.
+Serve the built `frontend/dist/` directory with any static file host (Nginx, a CDN, or a GCP Cloud Storage bucket) and point `VITE_BFF_URL` at the deployed BFF.
 
 ### 6. Validate the full stack (install + test + build)
 
@@ -137,7 +200,7 @@ The BFF serves built frontend assets in production; open `http://localhost:3002`
 npm run validate
 ```
 
-This is the single green-gate — it installs all dependencies, runs all tests across all packages, and builds the frontend. Use it to confirm everything is wired up correctly.
+Installs all dependencies, runs all tests across all three packages, and builds the frontend. This is the single green-gate — if it passes, the stack is wired up correctly.
 
 ---
 
@@ -174,7 +237,7 @@ cd frontend && npm run test:coverage
 |-------|-----------|---------|-------------------|
 | Backend — domain | Unit | Jest | None — pure functions, no I/O |
 | Backend — application | Unit | Jest | `jest.fn()` mocks for repository interfaces |
-| Backend — interface | Integration | Jest + supertest | In-memory SQLite (`DB_PATH=':memory:'`) |
+| Backend — interface | Integration | Jest + supertest | In-memory SQLite (`new Database(':memory:')`) |
 | BFF | Integration | Jest + supertest | `jest.mock('./httpClient')` — no real backend |
 | Frontend | Component | RTL + Jest | `jest.mock('../api/todos')` — no real BFF |
 
@@ -218,9 +281,9 @@ Chosen for simplicity — no server to run, a single file to manage. The reposit
 ## Assumptions
 
 - Single-user per session — authentication is per-user but there is no admin or multi-tenant concept.
-- The SPA and BFF are deployed on the same host in production (or behind the same load balancer).
 - Node.js 22 LTS is available in all target environments (compatible with GCP Cloud Run and App Engine).
 - `title` is the only required field on a `Todo`; `description` and `dueDate` are optional.
+- The SPA, BFF, and backend are configured to allow cross-origin communication in production via `CORS_ORIGIN` and `VITE_BFF_URL`.
 
 ---
 

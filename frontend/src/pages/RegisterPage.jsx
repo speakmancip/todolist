@@ -1,35 +1,33 @@
 /**
- * @file LoginPage.jsx
- * @description Login page component.
+ * @file RegisterPage.jsx
+ * @description User registration page component.
  *
  * ARCHITECTURE — Frontend Page:
- * Handles UC-01 (successful login), UC-02 (wrong password), and UC-03
- * (unknown email). The same error message is shown for UC-02 and UC-03
- * because the backend deliberately returns identical responses for both —
- * this prevents an attacker from using the login form to enumerate valid
- * email addresses.
+ * Handles new account creation. On success the returned JWT is stored in
+ * AuthContext (same flow as login) and the user is immediately redirected
+ * to their todo list — no separate login step required after registration.
  *
  * ON SUCCESS:
- *   1. loginUser() resolves with a JWT token.
- *   2. login() is called on AuthContext to store the token in React state.
+ *   1. registerUser() resolves with a JWT token.
+ *   2. login() is called on AuthContext to store the token.
  *   3. React Router navigates to /todos.
  *
  * ON FAILURE:
- *   The error message from the thrown object is displayed in a live region
- *   (role="alert") so screen readers announce it immediately.
+ *   409 Conflict — email already registered, shown as an inline error.
+ *   Other errors — generic message shown in the alert region.
  */
 
-import { useState }          from 'react';
+import { useState }      from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { loginUser } from '../api/auth';
+import { useAuth }       from '../context/AuthContext';
+import { registerUser }  from '../api/auth';
 
 /**
- * Renders the login form and handles credential submission.
+ * Renders the registration form and handles account creation.
  *
  * @returns {JSX.Element}
  */
-function LoginPage() {
+function RegisterPage() {
   const [emailAddress, setEmailAddress] = useState('');
   const [password, setPassword]         = useState('');
   const [error, setError]               = useState(null);
@@ -39,7 +37,7 @@ function LoginPage() {
   const navigate   = useNavigate();
 
   /**
-   * Submits credentials to the BFF, stores the returned token, and navigates.
+   * Submits registration details, stores the returned token, and navigates.
    *
    * @param {React.FormEvent} event
    */
@@ -49,13 +47,12 @@ function LoginPage() {
     setIsLoading(true);
 
     try {
-      const { token } = await loginUser(emailAddress, password);
+      const { token } = await registerUser(emailAddress, password);
       // Store the JWT in React state (AuthContext) — not localStorage (XSS risk).
       login(token);
       navigate('/todos');
     } catch (err) {
-      // err.message comes from the BFF's error body — display it verbatim.
-      setError(err.message || 'Incorrect credentials. Please try again');
+      setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -65,7 +62,7 @@ function LoginPage() {
     <main className="auth-page">
       <section className="auth-card">
         <h1>Todo List</h1>
-        <h2>Sign In</h2>
+        <h2>Create Account</h2>
 
         <form onSubmit={handleSubmit} noValidate>
           <div className="form-group">
@@ -87,25 +84,24 @@ function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
+              autoComplete="new-password"
               required
             />
           </div>
 
-          {/* role="alert" ensures screen readers announce the error immediately */}
           {error && <p className="alert-error" role="alert">{error}</p>}
 
           <button className="btn btn-primary" type="submit" disabled={isLoading}>
-            {isLoading ? 'Signing in…' : 'Sign in'}
+            {isLoading ? 'Creating account…' : 'Create account'}
           </button>
         </form>
 
         <p style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
-          Don&apos;t have an account? <Link to="/register">Create one</Link>
+          Already have an account? <Link to="/login">Sign in</Link>
         </p>
       </section>
     </main>
   );
 }
 
-export default LoginPage;
+export default RegisterPage;
