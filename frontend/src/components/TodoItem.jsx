@@ -49,42 +49,58 @@ function TodoItem({ todo, onDelete, onToggleComplete }) {
   }
 
   return (
-    <li>
-      {/* UC-06: clicking the title navigates to the detail/edit page */}
-      <Link to={`/todos/${todo.id}`}>{todo.title}</Link>
+    <li className="todo-item">
+      {/* Body: title link + metadata stacked vertically */}
+      <div className="todo-item__body">
+        {/* UC-06: clicking the title navigates to the detail/edit page */}
+        <Link className="todo-item__title" to={`/todos/${todo.id}`}>
+          {todo.title}
+        </Link>
 
-      {/* Essential metadata shown inline so the user can scan the list without opening each item */}
-      <span aria-label="completion status">
-        {todo.isCompleted ? 'Completed' : 'Incomplete'}
-      </span>
+        {/* Essential metadata shown inline so the user can scan without opening each item */}
+        <div className="todo-item__meta">
+          <span
+            className={`status-badge ${todo.isCompleted ? 'status-badge--complete' : 'status-badge--incomplete'}`}
+            aria-label="completion status"
+          >
+            {todo.isCompleted ? 'Completed' : 'Incomplete'}
+          </span>
 
-      {todo.dueDate && (
-        <span aria-label="due date">Due: {todo.dueDate}</span>
-      )}
+          {todo.dueDate && (
+            <span aria-label="due date">Due: {todo.dueDate}</span>
+          )}
+        </div>
+      </div>
 
-      {/* Completion toggle — calls the parent-provided handler */}
-      <button
-        type="button"
-        aria-label={todo.isCompleted ? 'Mark incomplete' : 'Mark complete'}
-        onClick={() => onToggleComplete(todo)}
-      >
-        {todo.isCompleted ? 'Undo' : 'Complete'}
-      </button>
+      {/* Action buttons grouped on the right */}
+      <div className="todo-item__actions">
+        {/* Completion toggle — calls the parent-provided handler */}
+        <button
+          className="btn btn-secondary btn-sm"
+          type="button"
+          aria-label={todo.isCompleted ? 'Mark incomplete' : 'Mark complete'}
+          onClick={() => onToggleComplete(todo)}
+        >
+          {todo.isCompleted ? 'Undo' : 'Complete'}
+        </button>
 
-      {/* Delete with confirmation (UC-09/UC-10) */}
-      <button
-        type="button"
-        aria-label={`Delete ${todo.title}`}
-        onClick={handleDeleteClick}
-      >
-        Delete
-      </button>
+        {/* Delete with confirmation (UC-09/UC-10) */}
+        <button
+          className="btn btn-danger btn-sm"
+          type="button"
+          aria-label={`Delete ${todo.title}`}
+          onClick={handleDeleteClick}
+        >
+          Delete
+        </button>
+      </div>
 
       {/* UC-10: dismissible cancellation banner shown after user cancels the dialog */}
       {cancellationBannerVisible && (
-        <span role="status">
-          Deletion cancelled{' '}
+        <span className="banner-info" role="status">
+          Deletion cancelled
           <button
+            className="btn btn-ghost"
             type="button"
             aria-label="Dismiss"
             onClick={() => setCancellationBannerVisible(false)}

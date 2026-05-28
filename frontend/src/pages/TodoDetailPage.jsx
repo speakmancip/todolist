@@ -133,8 +133,8 @@ function TodoDetailPage() {
   if (loadError) {
     return (
       <main>
-        <Link to="/todos">← Back to list</Link>
-        <p role="alert">{loadError}</p>
+        <nav><Link to="/todos">← Back to list</Link></nav>
+        <p className="alert-error" role="alert">{loadError}</p>
       </main>
     );
   }
@@ -142,7 +142,7 @@ function TodoDetailPage() {
   if (!todo) {
     return (
       <main>
-        <p>Loading…</p>
+        <p style={{ color: 'var(--color-text-muted)' }}>Loading…</p>
       </main>
     );
   }
@@ -153,29 +153,35 @@ function TodoDetailPage() {
         <Link to="/todos">← Back to list</Link>
       </nav>
 
-      <h1>{todo.title}</h1>
+      <div className="page-header">
+        <h1>{todo.title}</h1>
 
-      <p>
-        Status:{' '}
-        <strong>{todo.isCompleted ? 'Completed' : 'Incomplete'}</strong>
-      </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <span
+            className={`status-badge ${todo.isCompleted ? 'status-badge--complete' : 'status-badge--incomplete'}`}
+          >
+            {todo.isCompleted ? 'Completed' : 'Incomplete'}
+          </span>
 
-      {/* Completion toggle */}
-      <button
-        type="button"
-        onClick={handleToggleComplete}
-        disabled={isToggling}
-        aria-label={todo.isCompleted ? 'Mark as incomplete' : 'Mark as complete'}
-      >
-        {todo.isCompleted ? 'Mark incomplete' : 'Mark complete'}
-      </button>
+          {/* Completion toggle */}
+          <button
+            className="btn btn-secondary"
+            type="button"
+            onClick={handleToggleComplete}
+            disabled={isToggling}
+            aria-label={todo.isCompleted ? 'Mark as incomplete' : 'Mark as complete'}
+          >
+            {todo.isCompleted ? 'Mark incomplete' : 'Mark complete'}
+          </button>
+        </div>
+      </div>
 
       {/* UC-07 / UC-08: edit form — always visible, pre-filled with current values */}
       <section>
         <h2>Edit todo</h2>
 
         <form onSubmit={handleSave} noValidate>
-          <div>
+          <div className="form-group">
             <label htmlFor="detailTitle">Title</label>
             <input
               id="detailTitle"
@@ -185,7 +191,7 @@ function TodoDetailPage() {
             />
           </div>
 
-          <div>
+          <div className="form-group">
             <label htmlFor="detailDescription">Description</label>
             <textarea
               id="detailDescription"
@@ -195,7 +201,7 @@ function TodoDetailPage() {
             />
           </div>
 
-          <div>
+          <div className="form-group">
             <label htmlFor="detailDueDate">Due date</label>
             <input
               id="detailDueDate"
@@ -206,19 +212,20 @@ function TodoDetailPage() {
           </div>
 
           {/* role="alert" announces save errors (including UC-08) to screen readers */}
-          {saveError && <p role="alert">{saveError}</p>}
+          {saveError && <p className="alert-error" role="alert">{saveError}</p>}
 
-          <button type="submit" disabled={isSaving}>
+          <button className="btn btn-primary" type="submit" disabled={isSaving}>
             {isSaving ? 'Saving…' : 'Save changes'}
           </button>
         </form>
       </section>
 
       {/* UC-09 / UC-10: delete section */}
-      <section>
+      <section className="danger-zone">
         <h2>Danger zone</h2>
 
         <button
+          className="btn btn-danger"
           type="button"
           onClick={handleDelete}
           disabled={isDeleting}
@@ -229,9 +236,10 @@ function TodoDetailPage() {
 
         {/* UC-10: dismissible cancellation banner */}
         {cancellationBannerVisible && (
-          <p role="status">
-            Deletion cancelled{' '}
+          <p className="banner-info" role="status">
+            Deletion cancelled
             <button
+              className="btn btn-ghost"
               type="button"
               aria-label="Dismiss"
               onClick={() => setCancellationBannerVisible(false)}
