@@ -42,22 +42,46 @@ todolist/
 
 ---
 
-## Features
+## Delivery State
 
-| # | Feature | Description |
-|---|---------|-------------|
-| UC-01 | Login | Authenticate with email and password; receive a JWT |
-| UC-02/03 | Login — bad credentials | Generic "Incorrect credentials" message (no field hint) |
-| UC-04 | Create todo | Add a todo with title, optional description, and optional due date |
-| UC-05 | Create todo — missing title | Inline validation error before API call |
-| UC-06 | View todo | Click a todo title to see full details |
-| UC-07 | Edit todo | Update title, description, or due date |
-| UC-08 | Edit todo — description too long | Error shown when description exceeds 1000 characters |
-| UC-09 | Delete todo — confirmed | Confirmation dialog; todo removed from list on confirm |
-| UC-10 | Delete todo — cancelled | Dismissible "Deletion cancelled" info banner |
-| — | Register | Create a new account from the register page |
-| — | Complete / Incomplete | Toggle the completion status of any todo |
-| — | List view | Todos displayed with title, completion status, and due date |
+### Use Cases
+
+| Use Case | Status | Notes |
+|----------|:------:|-------|
+| UC-01 Login — happy path | ✅ | JWT issued; stored in React state (not localStorage) |
+| UC-02/03 Login — bad credentials | ✅ | Generic 401 message; no field hint (prevents user enumeration) |
+| UC-04 Create todo — happy path | ✅ | Title, description, dueDate fields; returns 201 |
+| UC-05 Create todo — missing title | ✅ | Client-side guard fires before API call; backend enforces as safety net |
+| UC-06 View todo details | ✅ | Detail page fetched by ID; list items link directly |
+| UC-07 Edit todo — happy path | ✅ | Title, description, dueDate all updatable |
+| UC-08 Edit todo — description too long | ⚠️ Partial | Backend enforces 1000-char limit (422); create form uses HTML `maxLength`; edit form has no client-side pre-validation — relies on the backend error message |
+| UC-09 Delete todo — confirmed | ✅ | `window.confirm` → DELETE → 204; item removed from list |
+| UC-10 Delete todo — cancelled | ✅ | Dismissible "Deletion cancelled" banner |
+| Register | ✅ | Separate register page; 409 on duplicate email |
+| Complete / Incomplete toggle | ✅ | PATCH `/complete` and `/incomplete` endpoints wired end-to-end |
+| List view — essential details | ✅ | Title, completion status, and due date shown inline |
+
+### Architecture & Infrastructure
+
+| Requirement | Status | Notes |
+|-------------|:------:|-------|
+| Domain-Driven Design | ✅ | Strict Domain → Application → Interface → Infrastructure layers |
+| BFF pure proxy | ✅ | Zero domain logic; forwards `Authorization` header verbatim |
+| Repository abstraction | ✅ | `TodoRepository` / `UserRepository` interfaces; SQLite implementations |
+| Idempotent migrations | ✅ | `CREATE TABLE IF NOT EXISTS` — safe to run on every startup |
+| Stateless services | ✅ | No in-memory session state in backend or BFF |
+| JWT authority | ✅ | Backend exclusively signs and verifies tokens; BFF has no JWT secret |
+| Centralised error handling | ✅ | Global error handlers in both backend and BFF; domain codes → HTTP status |
+| Structured logging | ✅ | JSON to stdout (12-Factor XI); audit events persisted to `logs` table |
+| Environment configuration | ✅ | All secrets and URLs via `.env` variables |
+| Environment validation at startup | ❌ | No fail-fast if `JWT_SECRET` or other required variables are absent |
+| CORS | ⚠️ Partial | `cors({ origin: CORS_ORIGIN })` in BFF; allowed methods/headers not explicitly restricted |
+| Security headers | ❌ | No `helmet` or Content-Security-Policy in BFF or backend |
+| Rate limiting | ❌ | No brute-force protection on `/auth/login` or other endpoints |
+| Request tracing | ❌ | No correlation IDs across SPA → BFF → backend |
+| API documentation | ❌ | No OpenAPI / Swagger specification |
+| Containerisation | ❌ | No `Dockerfile` for any service |
+| CI/CD | ❌ | No GitHub Actions or automated pipeline |
 
 ---
 
