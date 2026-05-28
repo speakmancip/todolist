@@ -1,36 +1,35 @@
 /**
  * @file App.test.jsx
- * @description Phase 0 smoke test for the root React component.
+ * @description Smoke test for the root App component.
  *
  * PURPOSE:
- * This test exists as the gate for Phase 0 of the build process. It must
- * pass before any feature code is written. It verifies two things:
- *  1. The App component renders without throwing.
- *  2. The expected placeholder heading is present in the DOM.
+ * Verifies that the full application shell (AuthProvider + BrowserRouter +
+ * Routes) renders without throwing and that the default route redirects the
+ * user to the login page, which is the expected first screen of the app.
  *
  * HOW IT WORKS:
- * React Testing Library renders the component into a simulated browser DOM
- * (jsdom) and queries the result using accessible queries. No real browser,
- * BFF, or backend is involved.
+ * React Testing Library renders the full <App /> component (including the
+ * BrowserRouter). The root route (/) redirects to /login, so LoginPage is
+ * rendered. The test confirms the login page heading is present.
  *
- * WHAT IT DOES NOT TEST:
- * - Routing (React Router is not yet wired up in the skeleton)
- * - Authentication (AuthContext is not yet present)
- * - API calls (no network requests are made)
- * These are covered by tests added in Phase 6.
+ * The api/auth and api/todos modules are mocked so that no real HTTP
+ * requests are attempted during the render cycle.
  */
 
-import React from 'react';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import App from '../src/App';
 
-describe('App (skeleton smoke test)', () => {
-  it('renders the application heading without crashing', () => {
+// Prevent any real network calls if api modules are imported transitively.
+jest.mock('../src/api/auth');
+jest.mock('../src/api/todos');
+
+describe('App', () => {
+  it('renders the login page heading when the user navigates to the root URL', () => {
     render(<App />);
 
-    // The heading is the simplest observable output of the skeleton App.
-    // In the full implementation this test will be replaced by page-level tests.
+    // The root route (/) redirects to /login, which renders LoginPage.
+    // LoginPage has an <h1>Todo List</h1> heading at the top of the page.
     expect(screen.getByRole('heading', { name: /todo list/i })).toBeInTheDocument();
   });
 });
