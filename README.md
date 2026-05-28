@@ -42,6 +42,43 @@ todolist/
 
 ---
 
+## Features
+
+| # | Feature | Description |
+|---|---------|-------------|
+| UC-01 | Login | Authenticate with email and password; receive a JWT |
+| UC-02/03 | Login — bad credentials | Generic "Incorrect credentials" message (no field hint) |
+| UC-04 | Create todo | Add a todo with title, optional description, and optional due date |
+| UC-05 | Create todo — missing title | Inline validation error before API call |
+| UC-06 | View todo | Click a todo title to see full details |
+| UC-07 | Edit todo | Update title, description, or due date |
+| UC-08 | Edit todo — description too long | Error shown when description exceeds 1000 characters |
+| UC-09 | Delete todo — confirmed | Confirmation dialog; todo removed from list on confirm |
+| UC-10 | Delete todo — cancelled | Dismissible "Deletion cancelled" info banner |
+| — | Register | Create a new account from the register page |
+| — | Complete / Incomplete | Toggle the completion status of any todo |
+| — | List view | Todos displayed with title, completion status, and due date |
+
+---
+
+## REST API
+
+All `/todos` endpoints require an `Authorization: Bearer <token>` header.
+
+| Method | Path | Auth | Description |
+|--------|------|:----:|-------------|
+| `POST` | `/auth/register` | | Create a user account; returns a JWT |
+| `POST` | `/auth/login` | | Validate credentials; returns a JWT |
+| `GET` | `/todos` | ✓ | List all todos for the authenticated user |
+| `POST` | `/todos` | ✓ | Create a todo |
+| `GET` | `/todos/:id` | ✓ | Fetch a single todo |
+| `PUT` | `/todos/:id` | ✓ | Update title, description, and/or due date |
+| `DELETE` | `/todos/:id` | ✓ | Permanently delete a todo (returns 204) |
+| `PATCH` | `/todos/:id/complete` | ✓ | Mark a todo as completed |
+| `PATCH` | `/todos/:id/incomplete` | ✓ | Mark a completed todo as incomplete |
+
+---
+
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/) v22 LTS or later
@@ -118,18 +155,20 @@ npm run dev:bff
 npm run dev:frontend
 ```
 
+Then open `http://localhost:5173` in your browser.
+
 ### 5. Run in production
 
 ```bash
-# Build the React SPA
+# Build the React SPA into static files
 npm run build:frontend
 
-# Start the backend and BFF (each in their own process)
-npm run dev:backend   # or: node backend/src/server.js
-npm run dev:bff       # or: node bff/src/server.js
+# Start the backend and BFF (each in their own process or container)
+node backend/src/server.js    # port 3001
+node bff/src/server.js        # port 3002
 ```
 
-The BFF serves built frontend assets in production; open `http://localhost:3002` in your browser.
+Serve the built `frontend/dist/` directory with any static file host (Nginx, a CDN, or a GCP Cloud Storage bucket) and point `VITE_BFF_URL` at the deployed BFF.
 
 ### 6. Validate the full stack (install + test + build)
 
@@ -137,7 +176,7 @@ The BFF serves built frontend assets in production; open `http://localhost:3002`
 npm run validate
 ```
 
-This is the single green-gate — it installs all dependencies, runs all tests across all packages, and builds the frontend. Use it to confirm everything is wired up correctly.
+Installs all dependencies, runs all tests across all three packages, and builds the frontend. This is the single green-gate — if it passes, the stack is wired up correctly.
 
 ---
 
@@ -174,7 +213,7 @@ cd frontend && npm run test:coverage
 |-------|-----------|---------|-------------------|
 | Backend — domain | Unit | Jest | None — pure functions, no I/O |
 | Backend — application | Unit | Jest | `jest.fn()` mocks for repository interfaces |
-| Backend — interface | Integration | Jest + supertest | In-memory SQLite (`DB_PATH=':memory:'`) |
+| Backend — interface | Integration | Jest + supertest | In-memory SQLite (`new Database(':memory:')`) |
 | BFF | Integration | Jest + supertest | `jest.mock('./httpClient')` — no real backend |
 | Frontend | Component | RTL + Jest | `jest.mock('../api/todos')` — no real BFF |
 
@@ -218,9 +257,9 @@ Chosen for simplicity — no server to run, a single file to manage. The reposit
 ## Assumptions
 
 - Single-user per session — authentication is per-user but there is no admin or multi-tenant concept.
-- The SPA and BFF are deployed on the same host in production (or behind the same load balancer).
 - Node.js 22 LTS is available in all target environments (compatible with GCP Cloud Run and App Engine).
 - `title` is the only required field on a `Todo`; `description` and `dueDate` are optional.
+- The SPA, BFF, and backend are configured to allow cross-origin communication in production via `CORS_ORIGIN` and `VITE_BFF_URL`.
 
 ---
 
