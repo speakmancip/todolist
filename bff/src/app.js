@@ -2,33 +2,37 @@
  * @file app.js
  * @description Express application factory for the BFF (Backend for Frontend).
  *
- * ARCHITECTURE — BFF Layer:
+ * ARCHITECTURE — BFF Composition Root:
  * The BFF is a thin proxy that sits between the React SPA and the backend
- * service. It has no business logic and no knowledge of domain models.
+ * service. This file wires together all BFF middleware and routes.
  *
- * Responsibilities of the BFF:
- *  - Accept requests from the SPA (enforcing CORS)
- *  - Forward the Authorization header verbatim to the backend
- *  - Return the backend's response to the SPA
- *  - Normalise error shapes into a consistent format for the frontend
+ * Responsibilities:
+ *  - Enforce CORS so only the configured SPA origin can make cross-origin requests
+ *  - Parse incoming JSON bodies
+ *  - Proxy /auth and /todos requests to the backend via the HTTP client
+ *  - Forward the Authorization header verbatim on all /todos requests
+ *  - Normalise network-level failures into 502 responses via the error handler
  *
  * The BFF does NOT:
- *  - Hold or validate JWTs (the backend is the sole auth authority)
+ *  - Hold or validate JWTs — the backend is the sole JWT authority
  *  - Perform any domain logic (create, read, update, or delete Todos/Users)
  *  - Access the database directly
  *
  * Separating the app factory from server.js allows test suites to import
  * createApp() and use supertest without binding a real network port.
- *
- * In the full implementation this factory will:
- *  - Apply CORS middleware with the configured allowed origin
- *  - Mount /auth and /todos proxy routes
- *  - Register the global error handler last
+ * config.validate() is called from server.js, not here, so tests can run
+ * without a full production environment.
  */
 
 'use strict';
 
 const express = require('express');
+const cors    = require('cors');
+
+const { CORS_ORIGIN }      = require('./config');
+const { createAuthRoutes } = require('./routes/authRoutes');
+const { createTodoRoutes } = require('./routes/todoRoutes');
+const { errorHandler }     = require('./middleware/errorHandler');
 
 /**
  * Creates and configures the BFF Express application.
@@ -39,22 +43,27 @@ const express = require('express');
 function createApp() {
   const app = express();
 
+  // Restrict cross-origin requests to the configured SPA origin.
+  // Falls back to '*' when CORS_ORIGIN is not set (integration test environments).
+  app.use(cors({ origin: CORS_ORIGIN || '*' }));
+
   // Parse incoming JSON request bodies.
   app.use(express.json());
 
-  /**
-   * Health check endpoint.
-   *
-   * Confirms the BFF process is running and reachable.
-   * Used by load balancers, orchestration platforms, and the validate script.
-   *
-   * @route  GET /health
-   * @access Public — no authentication required
-   * @returns {{ status: 'ok', service: string }} 200 OK
-   */
+  // Health check — public, no auth required.
   app.get('/health', (req, res) => {
     res.json({ status: 'ok', service: 'todolist-bff' });
   });
+
+  // Auth proxy routes: POST /auth/register, POST /auth/login — public.
+  app.use('/auth', createAuthRoutes());
+
+  // Todo proxy routes: POST /todos, GET /todos — Authorization header forwarded inside controller.
+  app.use('/todos', createTodoRoutes());
+
+  // Global error handler — catches network failures from the HTTP client.
+  // MUST be registered last so Express recognises the four-argument signature.
+  app.use(errorHandler);
 
   return app;
 }
