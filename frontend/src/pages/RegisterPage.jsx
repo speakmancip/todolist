@@ -59,14 +59,13 @@ function RegisterPage() {
   }
 
   return (
-    <main>
-      <h1>Todo List</h1>
-
-      <section>
+    <main className="auth-page">
+      <section className="auth-card">
+        <h1>Todo List</h1>
         <h2>Create Account</h2>
 
         <form onSubmit={handleSubmit} noValidate>
-          <div>
+          <div className="form-group">
             <label htmlFor="emailAddress">Email address</label>
             <input
               id="emailAddress"
@@ -78,7 +77,7 @@ function RegisterPage() {
             />
           </div>
 
-          <div>
+          <div className="form-group">
             <label htmlFor="password">Password</label>
             <input
               id="password"
@@ -90,14 +89,14 @@ function RegisterPage() {
             />
           </div>
 
-          {error && <p role="alert">{error}</p>}
+          {error && <p className="alert-error" role="alert">{error}</p>}
 
-          <button type="submit" disabled={isLoading}>
+          <button className="btn btn-primary" type="submit" disabled={isLoading}>
             {isLoading ? 'Creating account…' : 'Create account'}
           </button>
         </form>
 
-        <p>
+        <p style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
           Already have an account? <Link to="/login">Sign in</Link>
         </p>
       </section>

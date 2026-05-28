@@ -62,14 +62,13 @@ function LoginPage() {
   }
 
   return (
-    <main>
-      <h1>Todo List</h1>
-
-      <section>
+    <main className="auth-page">
+      <section className="auth-card">
+        <h1>Todo List</h1>
         <h2>Sign In</h2>
 
         <form onSubmit={handleSubmit} noValidate>
-          <div>
+          <div className="form-group">
             <label htmlFor="emailAddress">Email address</label>
             <input
               id="emailAddress"
@@ -81,7 +80,7 @@ function LoginPage() {
             />
           </div>
 
-          <div>
+          <div className="form-group">
             <label htmlFor="password">Password</label>
             <input
               id="password"
@@ -94,14 +93,14 @@ function LoginPage() {
           </div>
 
           {/* role="alert" ensures screen readers announce the error immediately */}
-          {error && <p role="alert">{error}</p>}
+          {error && <p className="alert-error" role="alert">{error}</p>}
 
-          <button type="submit" disabled={isLoading}>
+          <button className="btn btn-primary" type="submit" disabled={isLoading}>
             {isLoading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
 
-        <p>
+        <p style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
           Don&apos;t have an account? <Link to="/register">Create one</Link>
         </p>
       </section>

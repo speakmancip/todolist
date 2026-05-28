@@ -121,16 +121,16 @@ function TodosPage() {
 
   return (
     <main>
-      <header>
+      <header className="page-header">
         <h1>My Todos</h1>
-        <button type="button" onClick={logout}>Sign out</button>
+        <button className="btn btn-secondary" type="button" onClick={logout}>Sign out</button>
       </header>
 
       <section>
         <h2>Add a todo</h2>
 
         <form onSubmit={handleCreate} noValidate>
-          <div>
+          <div className="form-group">
             <label htmlFor="todoTitle">Title</label>
             <input
               id="todoTitle"
@@ -141,7 +141,7 @@ function TodosPage() {
             />
           </div>
 
-          <div>
+          <div className="form-group">
             <label htmlFor="todoDescription">Description</label>
             <textarea
               id="todoDescription"
@@ -152,7 +152,7 @@ function TodosPage() {
             />
           </div>
 
-          <div>
+          <div className="form-group">
             <label htmlFor="todoDueDate">Due date</label>
             <input
               id="todoDueDate"
@@ -163,9 +163,9 @@ function TodosPage() {
           </div>
 
           {/* role="alert" announces validation errors to screen readers */}
-          {createError && <p role="alert">{createError}</p>}
+          {createError && <p className="alert-error" role="alert">{createError}</p>}
 
-          <button type="submit" disabled={isCreating}>
+          <button className="btn btn-primary" type="submit" disabled={isCreating}>
             {isCreating ? 'Adding…' : 'Add todo'}
           </button>
         </form>
@@ -174,9 +174,11 @@ function TodosPage() {
       <section>
         <h2>Todo list</h2>
         {todos.length === 0 ? (
-          <p>No todos yet. Create one above.</p>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9375rem' }}>
+            No todos yet. Create one above.
+          </p>
         ) : (
-          <ul>
+          <ul className="todo-list">
             {todos.map((todo) => (
               <TodoItem
                 key={todo.id}
