@@ -5,6 +5,9 @@
  * USE CASES COVERED:
  *   UC-04  Create todo, happy path — new item appears at top of list
  *   UC-05  Create todo, missing title — validation error shown, API not called
+ *   UC-06  Clicking a todo title renders a link to the detail page
+ *   UC-09  Delete todo, confirmed — todo removed from list
+ *   UC-10  Delete todo, cancelled — "Deletion cancelled" banner shown
  *   List   Todos fetched on mount are rendered; empty state message shown
  *
  * TEST STRATEGY:
@@ -33,7 +36,7 @@ jest.mock('../../src/context/AuthContext', () => ({
   useAuth: () => ({ token: 'fake-token', logout: jest.fn() }),
 }));
 
-const { listTodos, createTodo } = require('../../src/api/todos');
+const { listTodos, createTodo, deleteTodo } = require('../../src/api/todos');
 
 /**
  * Renders TodosPage inside a MemoryRouter.
@@ -95,7 +98,8 @@ describe('TodosPage', () => {
     // The new todo should appear in the list after createTodo resolves.
     expect(await screen.findByText('New task')).toBeInTheDocument();
 
-    // createTodo must be called with the title and the injected token.
+    // createTodo must be called with the title (no extra fields when they are empty)
+    // and the injected token.
     expect(createTodo).toHaveBeenCalledWith({ title: 'New task' }, 'fake-token');
   });
 
@@ -139,5 +143,75 @@ describe('TodosPage', () => {
     // The guard must prevent the API call — if createTodo were called it would
     // indicate the validation check is missing or not working.
     expect(createTodo).not.toHaveBeenCalled();
+  });
+
+  // ---------------------------------------------------------------------------
+  // UC-06 — Navigate to todo detail page
+  // ---------------------------------------------------------------------------
+
+  it('UC-06: renders a link to the detail page for each todo', async () => {
+    listTodos.mockResolvedValue([
+      { id: 'uuid-1', title: 'Click me', isCompleted: false },
+    ]);
+
+    renderTodosPage();
+
+    // The title should be a link pointing to /todos/:id.
+    const link = await screen.findByRole('link', { name: 'Click me' });
+    expect(link).toHaveAttribute('href', '/todos/uuid-1');
+  });
+
+  // ---------------------------------------------------------------------------
+  // UC-09 — Delete todo, confirmed
+  // ---------------------------------------------------------------------------
+
+  it('UC-09: removes the todo from the list after confirmed deletion', async () => {
+    listTodos.mockResolvedValue([
+      { id: 'del-1', title: 'To be deleted', isCompleted: false },
+    ]);
+    deleteTodo.mockResolvedValue(undefined);
+
+    // Confirm the deletion dialog automatically.
+    jest.spyOn(window, 'confirm').mockReturnValue(true);
+
+    renderTodosPage();
+
+    await screen.findByText('To be deleted');
+
+    await userEvent.click(screen.getByRole('button', { name: /delete to be deleted/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('To be deleted')).not.toBeInTheDocument();
+    });
+
+    expect(deleteTodo).toHaveBeenCalledWith('del-1', 'fake-token');
+
+    window.confirm.mockRestore();
+  });
+
+  // ---------------------------------------------------------------------------
+  // UC-10 — Delete todo, cancelled
+  // ---------------------------------------------------------------------------
+
+  it('UC-10: shows "Deletion cancelled" banner when the user cancels the dialog', async () => {
+    listTodos.mockResolvedValue([
+      { id: 'keep-1', title: 'Keep this', isCompleted: false },
+    ]);
+
+    // Cancel the deletion dialog.
+    jest.spyOn(window, 'confirm').mockReturnValue(false);
+
+    renderTodosPage();
+
+    await screen.findByText('Keep this');
+
+    await userEvent.click(screen.getByRole('button', { name: /delete keep this/i }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Deletion cancelled');
+
+    // The todo should still be in the list — deletion was cancelled.
+    expect(screen.getByText('Keep this')).toBeInTheDocument();
+
+    window.confirm.mockRestore();
   });
 });
