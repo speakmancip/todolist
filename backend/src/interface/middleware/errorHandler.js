@@ -16,6 +16,7 @@
  * ERROR CODE → HTTP STATUS MAP:
  *  VALIDATION_ERROR → 422 Unprocessable Entity  (domain invariant violated)
  *  UNAUTHORIZED     → 401 Unauthorized           (bad credentials / missing token)
+ *  FORBIDDEN        → 403 Forbidden              (resource owned by another user)
  *  CONFLICT         → 409 Conflict               (duplicate resource)
  *  NOT_FOUND        → 404 Not Found              (resource does not exist)
  *  Everything else  → 500 Internal Server Error
@@ -27,6 +28,7 @@
 const STATUS_MAP = {
   VALIDATION_ERROR: 422,
   UNAUTHORIZED:     401,
+  FORBIDDEN:        403,
   CONFLICT:         409,
   NOT_FOUND:        404,
 };

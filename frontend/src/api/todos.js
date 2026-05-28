@@ -46,4 +46,82 @@ async function createTodo({ title, description, dueDate }, token) {
   });
 }
 
-export { listTodos, createTodo };
+/**
+ * Fetches a single Todo by ID (UC-06).
+ *
+ * @param {string} id    - The Todo's unique identifier.
+ * @param {string} token - JWT access token from AuthContext.
+ * @returns {Promise<object>} The Todo object.
+ * @throws {{ status: 404, message: string }} If the todo does not exist.
+ * @throws {{ status: 403, message: string }} If the todo belongs to another user.
+ */
+async function getTodo(id, token) {
+  return apiFetch(`/todos/${id}`, {
+    headers: { authorization: `Bearer ${token}` },
+  });
+}
+
+/**
+ * Updates the mutable fields of a Todo (UC-07, UC-08).
+ *
+ * @param {string} id   - The Todo's unique identifier.
+ * @param {object} data - Fields to update (any subset of title, description, dueDate).
+ * @param {string} token - JWT access token from AuthContext.
+ * @returns {Promise<object>} The updated Todo object.
+ * @throws {{ status: 422, message: string }} If description exceeds 1000 chars (UC-08).
+ * @throws {{ status: 404, message: string }} If the todo does not exist.
+ * @throws {{ status: 403, message: string }} If the todo belongs to another user.
+ */
+async function updateTodo(id, data, token) {
+  return apiFetch(`/todos/${id}`, {
+    method:  'PUT',
+    headers: { authorization: `Bearer ${token}` },
+    body:    data,
+  });
+}
+
+/**
+ * Permanently deletes a Todo (UC-09).
+ *
+ * @param {string} id    - The Todo's unique identifier.
+ * @param {string} token - JWT access token from AuthContext.
+ * @returns {Promise<void>} Resolves on 204 No Content.
+ * @throws {{ status: 404, message: string }} If the todo does not exist.
+ * @throws {{ status: 403, message: string }} If the todo belongs to another user.
+ */
+async function deleteTodo(id, token) {
+  return apiFetch(`/todos/${id}`, {
+    method:  'DELETE',
+    headers: { authorization: `Bearer ${token}` },
+  });
+}
+
+/**
+ * Marks a Todo as completed.
+ *
+ * @param {string} id    - The Todo's unique identifier.
+ * @param {string} token - JWT access token from AuthContext.
+ * @returns {Promise<object>} The updated Todo with isCompleted: true.
+ */
+async function completeTodo(id, token) {
+  return apiFetch(`/todos/${id}/complete`, {
+    method:  'PATCH',
+    headers: { authorization: `Bearer ${token}` },
+  });
+}
+
+/**
+ * Marks a completed Todo as incomplete.
+ *
+ * @param {string} id    - The Todo's unique identifier.
+ * @param {string} token - JWT access token from AuthContext.
+ * @returns {Promise<object>} The updated Todo with isCompleted: false.
+ */
+async function incompleteTodo(id, token) {
+  return apiFetch(`/todos/${id}/incomplete`, {
+    method:  'PATCH',
+    headers: { authorization: `Bearer ${token}` },
+  });
+}
+
+export { listTodos, createTodo, getTodo, updateTodo, deleteTodo, completeTodo, incompleteTodo };
